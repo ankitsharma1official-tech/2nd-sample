@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>AETHER-NET | Mobile Smooth Edition</title>
+    <script src="https://unpkg.com/maplibre-gl@5.0.1/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@5.0.1/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://cdn.maptiler.com/maptiler-geocoding-control/v1.3.3/maplibregl.umd.js"></script>
+    <link href="https://cdn.maptiler.com/maptiler-geocoding-control/v1.3.3/style.css" rel="stylesheet">
+    <style>
+        :root { --neon: #00f2ff; --bg: #000000; }
+        body { margin: 0; padding: 0; background: var(--bg); color: white; font-family: -apple-system, BlinkMacSystemFont, sans-serif; overflow: hidden; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        
+        /* Mobile-First HUD */
+        .hud-top { 
+            position: absolute; top: 15px; left: 15px; z-index: 10; 
+            background: rgba(0,0,0,0.8); padding: 10px; border-left: 3px solid var(--neon); 
+            font-size: 11px; pointer-events: none; border-radius: 2px;
+            letter-spacing: 1px;
+        }
+        
+        /* Tactical Bottom Navigation */
+        .bottom-nav { 
+            position: absolute; bottom: 30px; left: 0; width: 100%; 
+            display: flex; justify-content: center; gap: 10px; z-index: 10;
+            padding: 0 20px; box-sizing: border-box;
+        }
+        
+        button { 
+            background: rgba(20, 20, 20, 0.95); color: var(--neon); border: 1px solid var(--neon); 
+            padding: 14px 0; border-radius: 8px; font-size: 12px; font-weight: bold;
+            flex: 1; text-transform: uppercase; transition: 0.2s;
+        }
+        button:active { background: var(--neon); color: #000; }
+        button.active { background: #003333; border-color: #3DDC84; color: #3DDC84; }
+
+        /* Search Bar Tweaks */
+        .maplibregl-ctrl-geocoder { width: 220px !important; margin: 15px !important; border: 1px solid var(--neon) !important; background: black !important; }
+        .maplibregl-ctrl-geocoder input { color: white !important; padding: 10px !important; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+<div class="hud-top">
+    <b>AETHER-OS // LITE</b><br>
+    <span id="status">STATUS: ONLINE</span><br>
+    <span id="coords" style="font-size: 9px; color: #777;">0.0000, 0.0000</span>
+</div>
+
+<div class="bottom-nav">
+    <button id="follow-btn" onclick="toggleFollow()">Enable Follow</button>
+    <button onclick="map.flyTo({zoom: 2, pitch: 0})">Global Home</button>
+</div>
+
+<script>
+    const API_KEY = '6zP9RexeBTwxHcQlsSZT';
+    let isFollowing = false;
+    let watchId = null;
+
+    const map = new maplibregl.Map({
+        container: 'map',
+        // Using Satellite Hybrid for high-res photos with road names
+        style: `https://api.maptiler.com/maps/hybrid/style.json?key=${API_KEY}`,
+        center: [78.9629, 20.5937], 
+        zoom: 4,
+        pitch: 0, // No tilt for maximum 2D performance
+        bearing: 0,
+        antialias: false // Turn off for speed
+    });
+
+    // Disable 3D completely for speed
+    map.on('load', () => {
+        map.setProjection({ type: 'mercator' }); // Classic 2D flat map
+        document.getElementById('status').innerText = "STATUS: 2D_READY";
+    });
+
+    function toggleFollow() {
+        const btn = document.getElementById('follow-btn');
+        if (!isFollowing) {
+            isFollowing = true;
+            btn.innerText = "Following...";
+            btn.classList.add('active');
+            
+            watchId = navigator.geolocation.watchPosition(pos => {
+                const { longitude, latitude } = pos.coords;
+                map.easeTo({
+                    center: [longitude, latitude],
+                    zoom: 16, // Zoomed in for detail but not 3D
+                    duration: 1000
+                });
+                document.getElementById('coords').innerText = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+            }, null, { enableHighAccuracy: true });
+        } else {
+            isFollowing = false;
+            btn.innerText = "Enable Follow";
+            btn.classList.remove('active');
+            navigator.geolocation.clearWatch(watchId);
+        }
+    }
+
+    // Geocoding Control
+    const gc = new createMaptilerGeocodingControl({ apiKey: API_KEY, maplibregl: maplibregl });
+    map.addControl(gc, 'top-right');
+</script>
+</body>
+</html>
